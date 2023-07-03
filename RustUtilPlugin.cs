@@ -22,7 +22,7 @@ namespace Oxide.Plugins
 
         void OnPlayerDisconnected(BasePlayer player, string reason)
         {
-            sendMsgToAll($"{adminSys} {player.displayName} has disconnected. Players online: {BasePlayer.activePlayerList.ToString().Length}", "admins")
+            sendMsgToAll($"{adminSys} {player.displayName} has disconnected. Players online: {BasePlayer.activePlayerList.ToString().Length}", "admins");
         }
 
         #endregion
@@ -73,13 +73,20 @@ namespace Oxide.Plugins
                 default: break;
             }
         }
+
+        public static string returnTime()
+        {
+            DateTime today = DateTime.Today;
+            return $"<font color='grey'>{today.Hour}:{today.Minute}:{today.Second}<font color='white'> ";
+        }
         #endregion
 
         #region prefixes
-        public static string noauth = "<font color='red'>[Not Authorized]<font color='white'> You are not authorized to use this command.";
-        public static string error = "<font color='red'>[Error]<font color='white'> ";
-        public static string system = "<font color='#61b8ff'>[System]<font color='white'> ";
-        public static string adminSys = "<font color='red'>[Admin System]<font color='white'> ";
+
+        public static string noauth = $"{returnTime()}<font color='red'>[Not Authorized]<font color='white'> You are not authorized to use this command.";
+        public static string error = $"{returnTime()}<font color='red'>[Error]<font color='white'> ";
+        public static string system = $"{returnTime()}<font color='#61b8ff'>[System]<font color='white'> ";
+        public static string adminSys = $"{returnTime()}<font color='red'>[Admin System]<font color='white'> ";
         #endregion
 
 
