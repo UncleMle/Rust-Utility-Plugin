@@ -1,17 +1,63 @@
 ﻿using Oxide.Core.Libraries.Covalence;
 using UnityEngine.SocialPlatforms;
 using System.Collections.Generic;
+using ConVar;
+using System.Dynamic;
+using Oxide.Core.Libraries;
+using Newtonsoft.Json;
 
 namespace Oxide.Plugins
 {
     [Info("Rust Util Plugin", "UncleMole", "0.0.1")]
     class RustUtilPlugin : RustPlugin
     {
+        private ConfigData configData;
+        
+        class ConfigData
+        {
+            [JsonProperty(PropertyName = "Reply Message")]
+            public string rep = "Example Config Data.";
+        }
+
+ 
+        private bool loadConfigVars()
+        {
+            try
+            {
+                configData = Config.ReadObject<ConfigData>();
+            }
+            catch
+            {
+                return false;
+            }
+            saveConfig(configData);
+            return true;
+        }
+
         #region Initialization
         void Init()
         {
-            Puts("Plugin has initialized.");
+            if(!loadConfigVars())
+            {
+                Puts("Config file not found.");
+                return;
+            }
+
+            Puts("Util plug has been loaded successfully.");
         }
+
+        protected override void LoadDefaultConfig()
+        {
+            Puts("Creating new config file...");
+            configData = new ConfigData();
+            SaveConfig();
+        }
+
+        void saveConfig(ConfigData data)
+        {
+            Config.WriteObject(data, true);
+        }
+
         #endregion
 
         #region events
@@ -33,6 +79,18 @@ namespace Oxide.Plugins
         void playersCmd(BasePlayer p)
         {
             SendReply(p, $"{getPlayers()}");
+        }
+
+        [ChatCommand("aduty")]
+        void adutyCmd(BasePlayer p)
+        {
+            SendReply(p, $"Isadmin: {p.IsAdmin} aduty: ");
+        }
+
+        [ConsoleCommand("conftest")]
+        void confTest(ConsoleSystem.Arg args)
+        {
+            Puts("Config Data: " + configData.rep);
         }
 
         #endregion
@@ -79,6 +137,13 @@ namespace Oxide.Plugins
             DateTime today = DateTime.Today;
             return $"<font color='grey'>{today.Hour}:{today.Minute}:{today.Second}<font color='white'> ";
         }
+
+
+
+        public static void sendPerm(BasePlayer localPlayer, string commandName)
+        {
+            localPlayer.SendMessage("<font color='red'>[Authentication]<font color='white'> You are not authorized to use command "+ commandName);
+        }
         #endregion
 
         #region prefixes
@@ -89,7 +154,9 @@ namespace Oxide.Plugins
         public static string adminSys = $"{returnTime()}<font color='red'>[Admin System]<font color='white'> ";
         #endregion
 
+        #region playerData
 
 
+        #endregion
     }
 }
