@@ -11,51 +11,13 @@ namespace Oxide.Plugins
     [Info("Rust Util Plugin", "UncleMole", "0.0.1")]
     class RustUtilPlugin : RustPlugin
     {
-        private ConfigData configData;
-        
-        class ConfigData
-        {
-            [JsonProperty(PropertyName = "Reply Message")]
-            public string rep = "Example Config Data.";
-        }
 
- 
-        private bool loadConfigVars()
-        {
-            try
-            {
-                configData = Config.ReadObject<ConfigData>();
-            }
-            catch
-            {
-                return false;
-            }
-            saveConfig(configData);
-            return true;
-        }
+
 
         #region Initialization
         void Init()
         {
-            if(!loadConfigVars())
-            {
-                Puts("Config file not found.");
-                return;
-            }
-
             Puts("Util plug has been loaded successfully.");
-        }
-
-        protected override void LoadDefaultConfig()
-        {
-            Puts("Creating new config file...");
-            configData = new ConfigData();
-            SaveConfig();
-        }
-
-        void saveConfig(ConfigData data)
-        {
-            Config.WriteObject(data, true);
         }
 
         #endregion
@@ -87,11 +49,6 @@ namespace Oxide.Plugins
             SendReply(p, $"Isadmin: {p.IsAdmin} aduty: ");
         }
 
-        [ConsoleCommand("conftest")]
-        void confTest(ConsoleSystem.Arg args)
-        {
-            Puts("Config Data: " + configData.rep);
-        }
 
         #endregion
 
