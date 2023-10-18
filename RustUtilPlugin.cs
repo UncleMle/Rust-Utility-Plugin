@@ -1,36 +1,85 @@
-﻿using Oxide.Core.Libraries.Covalence;
-using UnityEngine.SocialPlatforms;
+﻿using System;
 using System.Collections.Generic;
-using ConVar;
-using System.Dynamic;
-using Oxide.Core.Libraries;
 using Newtonsoft.Json;
+using Oxide.Core;
+using UnityEngine;
+using Random = UnityEngine.Random;
 
 namespace Oxide.Plugins
 {
     [Info("Rust Util Plugin", "UncleMole", "0.0.1")]
     class RustUtilPlugin : RustPlugin
     {
+        #region variables
+        private ConfigData configData;
+        #endregion
+
+        #region config
+        class ConfigData
+        {
+            [JsonProperty(PropertyName = "Reply Message")]
+            public string rep = "Reply config data";
 
 
+        }
+
+        private bool LoadConfigVariables()
+        {
+            try
+            {
+                configData = Config.ReadObject<ConfigData>();
+            }
+            catch
+            {
+                return false;
+            }
+            SaveConfig(configData);
+            return true;
+        }
+        #endregion
 
         #region Initialization
         void Init()
         {
-            Puts("Util plug has been loaded successfully.");
+            if (!LoadConfigVariables())
+            {
+                Puts("Config File issue.");
+            }
+            Puts("Util plug has been loaded successfully.", configData.rep);
+        }
+
+        protected override void LoadDefaultConfig()
+        {
+            Puts("Creating new config file.");
+            configData = new ConfigData();
+
+            SaveConfig(configData);
+        }
+
+        void SaveConfig(ConfigData configData)
+        {
+            Config.WriteObject(configData, true);
+
         }
 
         #endregion
 
+
         #region events
         void OnPlayerConnected(BasePlayer player)
         {
-            sendMsgToAll($"{adminSys} {player.displayName} has joined. Players online: {BasePlayer.activePlayerList.ToString().Length}", "admins");
+            player.SendMessage($"Welcome {player.displayName} ", configData.rep);
+            //sendMsgToAll($"{adminSys} {player.displayName} has joined. Players online: {BasePlayer.activePlayerList.ToString().Length}", "admins");
+        }
+
+        void OnMessagePlayer(string message, BasePlayer player)
+        {
+            // player.SendMessage($"NULL {player.displayName} {configData.rep}");
         }
 
         void OnPlayerDisconnected(BasePlayer player, string reason)
         {
-            sendMsgToAll($"{adminSys} {player.displayName} has disconnected. Players online: {BasePlayer.activePlayerList.ToString().Length}", "admins");
+            //sendMsgToAll($"{adminSys} {player.displayName} has disconnected. Players online: {BasePlayer.activePlayerList.ToString().Length}", "admins");
         }
 
         #endregion
@@ -40,40 +89,44 @@ namespace Oxide.Plugins
         [ChatCommand("players")]
         void playersCmd(BasePlayer p)
         {
-            SendReply(p, $"{getPlayers()}");
-        }
-
-        [ChatCommand("aduty")]
-        void adutyCmd(BasePlayer p)
-        {
-            SendReply(p, $"Isadmin: {p.IsAdmin} aduty: ");
+            SendReply(p, $"There are currently {techrustColour}{getPlayers()}</color> players online and {techrustColour}{getSleepers()}</color> sleepers.");
         }
 
 
         #endregion
 
         #region GlobalMethods
-        public static string[] getPlayers()
+        public static int getPlayers()
         {
             int count = 0;
-            var players = new List<string>();
-            foreach(BasePlayer p in BasePlayer.activePlayerList)
+            foreach (BasePlayer p in BasePlayer.activePlayerList)
             {
-                players.Add($"{count}. {p.displayName}");
                 count++;
             }
 
-            return players.ToArray();
+            return count;
+        }
+
+        public static int getSleepers()
+        {
+            int count = 0;
+            foreach(BasePlayer p in BasePlayer.sleepingPlayerList)
+            {
+                count++;
+            }
+
+            return count;
+
         }
 
         public void sendMsgToAll(string message, string exception)
         {
-            switch(exception)
+            switch (exception)
             {
                 case "admins":
                     foreach (BasePlayer player in BasePlayer.activePlayerList)
                     {
-                        if(player.IsAdmin)
+                        if (player.IsAdmin)
                         {
                             player.SendMessage($"{message}");
                         }
@@ -99,7 +152,7 @@ namespace Oxide.Plugins
 
         public static void sendPerm(BasePlayer localPlayer, string commandName)
         {
-            localPlayer.SendMessage("<font color='red'>[Authentication]<font color='white'> You are not authorized to use command "+ commandName);
+            localPlayer.SendMessage("<font color='red'>[Authentication]<font color='white'> You are not authorized to use command " + commandName);
         }
         #endregion
 
@@ -109,6 +162,10 @@ namespace Oxide.Plugins
         public static string error = $"{returnTime()}<font color='red'>[Error]<font color='white'> ";
         public static string system = $"{returnTime()}<font color='#61b8ff'>[System]<font color='white'> ";
         public static string adminSys = $"{returnTime()}<font color='red'>[Admin System]<font color='white'> ";
+        #endregion
+
+        #region colours
+        public static string techrustColour = "<color=#799BFF>";
         #endregion
 
         #region playerData
