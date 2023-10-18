@@ -12,15 +12,31 @@ namespace Oxide.Plugins
     {
         #region variables
         private ConfigData configData;
+        private StoredData storedData;
         #endregion
+
+        class StoredData
+        {
+            public string exampleData;
+            public List<ulong> players = new List<ulong>();
+        }
+
+        void Loaded()
+        {
+            storedData = Interface.Oxide.DataFileSystem.ReadObject<StoredData>("TheData");
+            Interface.Oxide.DataFileSystem.WriteObject("RustUtilPlugin", storedData);
+        }
+
+        void SaveData()
+        {
+            Interface.Oxide.DataFileSystem.WriteObject("RustUtilPlugin", storedData);
+        }
 
         #region config
         class ConfigData
         {
             [JsonProperty(PropertyName = "Reply Message")]
-            public string rep = "Reply config data";
-
-
+            public string rep { get; set; }
         }
 
         private bool LoadConfigVariables()
@@ -89,7 +105,19 @@ namespace Oxide.Plugins
         [ChatCommand("players")]
         void playersCmd(BasePlayer p)
         {
-            SendReply(p, $"There are currently {techrustColour}{getPlayers()}</color> players online and {techrustColour}{getSleepers()}</color> sleepers.");
+            SendReply(p, $"There are currently {techrustColour}{getPlayers()}</color> players online and {techrustColour}{getSleepers()}</color> sleepers. ");
+            storedData.exampleData = p.displayName;
+            storedData.players.Add(p.userID);
+            SaveData();
+        }
+
+        [ChatCommand("getplayers")]
+        void getPlayers(BasePlayer p)
+        {
+            foreach (var item in  storedData.players)
+            {
+                Puts(item.ToString());
+            }
         }
 
 
