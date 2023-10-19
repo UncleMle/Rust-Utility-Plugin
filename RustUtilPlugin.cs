@@ -1,8 +1,21 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
+using System.Text;
+using System.Windows.Markup;
+using ConVar;
+using Facepunch.Extend;
+using JSON;
+using MySql.Data.MySqlClient;
 using Newtonsoft.Json;
 using Oxide.Core;
+using Oxide.Core.Database;
+using Oxide.Core.Libraries;
+using Oxide.Core.Libraries.Covalence;
+using Oxide.Core.MySql.Libraries;
+using Oxide.Game.Rust.Libraries;
 using UnityEngine;
+using UnityEngine.UIElements;
 using Random = UnityEngine.Random;
 
 namespace Oxide.Plugins
@@ -11,93 +24,161 @@ namespace Oxide.Plugins
     class RustUtilPlugin : RustPlugin
     {
         #region variables
-        private ConfigData configData;
+        private Configuration configData;
         private StoredData storedData;
+
+        public static string noauth = $"<font color='red'>[Not Authorized]<font color='white'> You are not authorized to use this command.";
+        public static string error = $"<font color='red'>[Error]<font color='white'> ";
+        public static string system = $"<font color='#61b8ff'>[System]<font color='white'> ";
+        public static string adminSys = $"<font color='red'>[Admin System]<font color='white'> ";
+        public static string techrustColour = "<color=#799BFF>";
+        public static string orange = "<color=orange>";
+        public static string stopColour = "</color>";
         #endregion
+
+        #region config and data
+        class Configuration
+        {
+            [JsonProperty(PropertyName = "showAdminName")]
+            public bool adminMessage { get; set; }
+
+            [JsonProperty(PropertyName = "adminPermission")]
+            public string adminPermission { get; set; }
+        }
 
         class StoredData
         {
-            public string exampleData;
-            public List<ulong> players = new List<ulong>();
+            public List<BanData> bannedPlayers = new List<BanData>();
         }
 
-        void Loaded()
+        class BanData
         {
-            storedData = Interface.Oxide.DataFileSystem.ReadObject<StoredData>("TheData");
-            Interface.Oxide.DataFileSystem.WriteObject("RustUtilPlugin", storedData);
+            public string name { get; set; }
+            public string steamId { get; set; }
+            public string ipAddress { get; set; }
+            public string unix { get; set; }
+            public string adminId { get; set; }
+            public string adminName { get; set; }
+            public string reason { get; set; }
         }
 
-        void SaveData()
+        private Configuration getDefault()
         {
-            Interface.Oxide.DataFileSystem.WriteObject("RustUtilPlugin", storedData);
+            return new Configuration
+            {
+                adminMessage = true,
+                adminPermission = "bans.use"
+            };
         }
 
-        #region config
-        class ConfigData
+
+        protected override void LoadDefaultConfig()
         {
-            [JsonProperty(PropertyName = "Reply Message")]
-            public string rep { get; set; }
+            Puts("Creating new config file.");
+
+            Configuration configData = getDefault();
+
+            SaveConfig(configData);
         }
 
-        private bool LoadConfigVariables()
+
+        private bool LoadData()
         {
             try
             {
-                configData = Config.ReadObject<ConfigData>();
+                configData = Config.ReadObject<Configuration>();
             }
             catch
             {
                 return false;
             }
+
             SaveConfig(configData);
             return true;
         }
+
+        void Loaded()
+        {
+            storedData = Interface.Oxide.DataFileSystem.ReadObject<StoredData>("RustUtilPlugin");
+            Interface.Oxide.DataFileSystem.WriteObject("RustUtilPlugin", storedData);
+        }
+
+        bool SaveData()
+        {
+            try
+            {
+                Interface.Oxide.DataFileSystem.WriteObject("RustUtilPlugin", storedData);
+                return true;
+            }
+            catch (Exception e)
+            {
+                Puts(e.ToString());
+                return false;
+            }
+        }
+
         #endregion
 
         #region Initialization
         void Init()
         {
-            if (!LoadConfigVariables())
+            if (!LoadData())
             {
-                Puts("Config File issue.");
+                Puts("Config or Data discrepancy.");
             }
-            Puts("Util plug has been loaded successfully.", configData.rep);
+
+            InitPerms();
+
+            Puts("Util plug has been loaded successfully.");
         }
 
-        protected override void LoadDefaultConfig()
-        {
-            Puts("Creating new config file.");
-            configData = new ConfigData();
-
-            SaveConfig(configData);
-        }
-
-        void SaveConfig(ConfigData configData)
+        void SaveConfig(Configuration configData)
         {
             Config.WriteObject(configData, true);
 
         }
 
+        void InitPerms()
+        {
+            permission.RegisterPermission(configData.adminPermission, this);
+        }
+
+        private StoredData GetStoredData()
+        {
+            return storedData;
+        }
+
         #endregion
 
-
-        #region events
-        void OnPlayerConnected(BasePlayer player)
+        #region global events
+        void OnUserConnected(IPlayer player, StoredData storedData)
         {
-            player.SendMessage($"Welcome {player.displayName} ", configData.rep);
-            //sendMsgToAll($"{adminSys} {player.displayName} has joined. Players online: {BasePlayer.activePlayerList.ToString().Length}", "admins");
-        }
+            bool isBanned = false;
+            string adminName = null;
+            string reason = null;
 
-        void OnMessagePlayer(string message, BasePlayer player)
-        {
-            // player.SendMessage($"NULL {player.displayName} {configData.rep}");
-        }
+            foreach (BanData b in storedData.bannedPlayers)
+            {
+                if (b.steamId == player.Id)
+                {
+                    isBanned = true;
+                    adminName = b.name;
+                    reason = b.reason;
+                    return;
+                }
+                else
+                {
+                    isBanned = false;
+                    return;
+                }
+            }
 
-        void OnPlayerDisconnected(BasePlayer player, string reason)
-        {
-            //sendMsgToAll($"{adminSys} {player.displayName} has disconnected. Players online: {BasePlayer.activePlayerList.ToString().Length}", "admins");
-        }
+            if (isBanned && adminName != null && reason != null)
+            {
+                player.Kick($"You are banned from this server for {reason} (ban from {adminName})");
+            }
 
+        }
         #endregion
 
 
@@ -105,100 +186,102 @@ namespace Oxide.Plugins
         [ChatCommand("players")]
         void playersCmd(BasePlayer p)
         {
-            SendReply(p, $"There are currently {techrustColour}{getPlayers()}</color> players online and {techrustColour}{getSleepers()}</color> sleepers. ");
-            storedData.exampleData = p.displayName;
-            storedData.players.Add(p.userID);
+            int currentPlayers = BasePlayer.activePlayerList.Count;
+            int currentSleepers = BasePlayer.sleepingPlayerList.Count;
+
+            SendReply(p, $"There are currently {techrustColour}{currentPlayers}</color> players online and {techrustColour}{currentSleepers}</color> sleepers. ");
+
             SaveData();
         }
 
-        [ChatCommand("getplayers")]
-        void getPlayers(BasePlayer p)
+        [ChatCommand("ban")]
+        void banPlayerCmd(BasePlayer p, string displayName, string reason)
         {
-            foreach (var item in  storedData.players)
+            if (!checkAuth(p))
             {
-                Puts(item.ToString());
-            }
-        }
-
-
-        #endregion
-
-        #region GlobalMethods
-        public static int getPlayers()
-        {
-            int count = 0;
-            foreach (BasePlayer p in BasePlayer.activePlayerList)
-            {
-                count++;
+                p.SendMessage(noauth);
+                return;
             }
 
-            return count;
-        }
-
-        public static int getSleepers()
-        {
-            int count = 0;
-            foreach(BasePlayer p in BasePlayer.sleepingPlayerList)
+            if (displayName == null ||  reason == null)
             {
-                count++;
+                p.SendMessage("Ensure parameters are satisfied.");
+                return;
             }
 
-            return count;
+            bool found = false;
 
-        }
-
-        public void sendMsgToAll(string message, string exception)
-        {
-            switch (exception)
+            foreach (BasePlayer target in BasePlayer.activePlayerList)
             {
-                case "admins":
-                    foreach (BasePlayer player in BasePlayer.activePlayerList)
-                    {
-                        if (player.IsAdmin)
-                        {
-                            player.SendMessage($"{message}");
-                        }
-                    }
-                    break;
-                case "players":
-                    foreach (BasePlayer player in BasePlayer.activePlayerList)
-                    {
-                        player.SendMessage($"{message}");
-                    }
-                    break;
-                default: break;
+                if(target.displayName == displayName && !checkBanList(target.UserIDString)) {
+                    banPlayer(p, target);
+                    p.SendMessage($"{adminSys} Banned player {target.displayName} ({target.UserIDString}) with reason {orange}{reason}{stopColour}");
+                    target.Kick(reason);
+                    found = true;
+                    return;
+                }
             }
+
+            if(!found)
+            {
+                p.SendMessage($"{adminSys} Player not found or player is already banned.");
+            }
+
         }
 
-        public static string returnTime()
+        #endregion
+
+
+        #region helpers
+
+        bool banPlayer(BasePlayer admin, BasePlayer target)
         {
-            DateTime today = DateTime.Today;
-            return $"<font color='grey'>{today.Hour}:{today.Minute}:{today.Second}<font color='white'> ";
+            if (!checkAuth(admin)) return false;
+            
+            BanData ban = new BanData();
+            string unixTime = getUnix();
+
+            ban.name = target.displayName;
+            ban.steamId = target.UserIDString;
+            ban.ipAddress = target.IPlayer.Address;
+            ban.unix = unixTime;
+
+            ban.adminId = admin.UserIDString;
+            ban.adminName = admin.displayName;
+
+            storedData.bannedPlayers.Add(ban);
+            
+            return SaveData();
         }
 
-
-
-        public static void sendPerm(BasePlayer localPlayer, string commandName)
+        bool checkAuth(BasePlayer p)
         {
-            localPlayer.SendMessage("<font color='red'>[Authentication]<font color='white'> You are not authorized to use command " + commandName);
+            return p.IPlayer.HasPermission(configData.adminPermission);
         }
+
+        bool checkBanList(string steamId)
+        {
+            bool found = false;
+
+            foreach (BanData target in storedData.bannedPlayers)
+            {
+                if(target.steamId == steamId)
+                {
+                    found = true;
+                }
+            }
+
+            return found;
+        }
+
+        string getUnix()
+        {
+            string unixTime = new DateTimeOffset(DateTime.UtcNow).ToUnixTimeSeconds().ToString();
+            return unixTime;
+        }
+
         #endregion
 
-        #region prefixes
-
-        public static string noauth = $"{returnTime()}<font color='red'>[Not Authorized]<font color='white'> You are not authorized to use this command.";
-        public static string error = $"{returnTime()}<font color='red'>[Error]<font color='white'> ";
-        public static string system = $"{returnTime()}<font color='#61b8ff'>[System]<font color='white'> ";
-        public static string adminSys = $"{returnTime()}<font color='red'>[Admin System]<font color='white'> ";
-        #endregion
-
-        #region colours
-        public static string techrustColour = "<color=#799BFF>";
-        #endregion
-
-        #region playerData
-
-
-        #endregion
     }
 }
+
