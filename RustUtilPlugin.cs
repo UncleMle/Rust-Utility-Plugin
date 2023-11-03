@@ -27,6 +27,8 @@ namespace Oxide.Plugins
         private Configuration configData;
         private StoredData storedData;
 
+        const string permAllowed = "rustutilplugin.allowed";
+
         public static string noauth = $"<font color='red'>[Not Authorized]<font color='white'> You are not authorized to use this command.";
         public static string error = $"<font color='red'>[Error]<font color='white'> ";
         public static string system = $"<font color='#61b8ff'>[System]<font color='white'> ";
@@ -127,7 +129,8 @@ namespace Oxide.Plugins
                 Puts("Config or Data discrepancy.");
             }
 
-            InitPerms();
+            permission.RegisterPermission(permAllowed, this);
+            Puts($"Loaded permission {permAllowed}");
 
             Puts("Util plug has been loaded successfully.");
         }
@@ -138,44 +141,14 @@ namespace Oxide.Plugins
 
         }
 
-        void InitPerms()
-        {
-            permission.RegisterPermission(configData.adminPermission, this);
-        }
-
-        private StoredData GetStoredData()
-        {
-            return storedData;
-        }
-
-        #endregion
-
         #region global events
-        void OnUserConnected(IPlayer player, StoredData storedData)
+        void OnPlayerConnected(BasePlayer player)
         {
-            bool isBanned = false;
-            string adminName = null;
-            string reason = null;
+            Puts($"User connected event triggered with username {player.name}, {player.UserIDString}");
 
-            foreach (BanData b in storedData.bannedPlayers)
+            if (checkBanList(player.UserIDString))
             {
-                if (b.steamId == player.Id)
-                {
-                    isBanned = true;
-                    adminName = b.name;
-                    reason = b.reason;
-                    return;
-                }
-                else
-                {
-                    isBanned = false;
-                    return;
-                }
-            }
-
-            if (isBanned && adminName != null && reason != null)
-            {
-                player.Kick($"You are banned from this server for {reason} (ban from {adminName})");
+                player.Kick("You are banned from this server.");
             }
 
         }
@@ -194,39 +167,43 @@ namespace Oxide.Plugins
             SaveData();
         }
 
-        [ChatCommand("ban")]
-        void banPlayerCmd(BasePlayer p, string displayName, string reason)
+        [ChatCommand("bansteam")]
+        void banPlayerCmd(BasePlayer p, string command, string[] args)
         {
+            SendReply(p, $"{command}");
+
             if (!checkAuth(p))
             {
-                p.SendMessage(noauth);
+                SendReply(p, noauth);
                 return;
             }
 
-            if (displayName == null ||  reason == null)
+            if (!(args.Length > 1))
             {
-                p.SendMessage("Ensure parameters are satisfied.");
+                SendReply(p, "Use /bansteam [username] [reason]");
                 return;
             }
+
+
 
             bool found = false;
 
             foreach (BasePlayer target in BasePlayer.activePlayerList)
             {
-                if(target.displayName == displayName && !checkBanList(target.UserIDString)) {
+                if (target.displayName == args[0] && !checkBanList(target.UserIDString))
+                {
                     banPlayer(p, target);
-                    p.SendMessage($"{adminSys} Banned player {target.displayName} ({target.UserIDString}) with reason {orange}{reason}{stopColour}");
-                    target.Kick(reason);
+                    SendReply(p, $"{adminSys} Banned player {target.displayName} ({target.UserIDString}) with reason {orange}{args[1]}{stopColour}");
+                    target.Kick(args[1]);
                     found = true;
                     return;
                 }
             }
 
-            if(!found)
+            if (!found)
             {
-                p.SendMessage($"{adminSys} Player not found or player is already banned.");
+                SendReply(p, $"{adminSys} Player not found or player is already banned.");
             }
-
         }
 
         #endregion
@@ -237,7 +214,7 @@ namespace Oxide.Plugins
         bool banPlayer(BasePlayer admin, BasePlayer target)
         {
             if (!checkAuth(admin)) return false;
-            
+
             BanData ban = new BanData();
             string unixTime = getUnix();
 
@@ -250,14 +227,12 @@ namespace Oxide.Plugins
             ban.adminName = admin.displayName;
 
             storedData.bannedPlayers.Add(ban);
-            
+
             return SaveData();
         }
 
-        bool checkAuth(BasePlayer p)
-        {
-            return p.IPlayer.HasPermission(configData.adminPermission);
-        }
+        bool checkAuth(BasePlayer p) => p.IPlayer.HasPermission(permAllowed);
+
 
         bool checkBanList(string steamId)
         {
@@ -265,7 +240,7 @@ namespace Oxide.Plugins
 
             foreach (BanData target in storedData.bannedPlayers)
             {
-                if(target.steamId == steamId)
+                if (target.steamId == steamId)
                 {
                     found = true;
                 }
@@ -281,7 +256,7 @@ namespace Oxide.Plugins
         }
 
         #endregion
-
     }
+    #endregion
 }
 
