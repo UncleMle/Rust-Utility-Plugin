@@ -29,10 +29,10 @@ namespace Oxide.Plugins
 
         const string permAllowed = "rustutilplugin.allowed";
 
-        public static string noauth = $"<font color='red'>[Not Authorized]<font color='white'> You are not authorized to use this command.";
-        public static string error = $"<font color='red'>[Error]<font color='white'> ";
-        public static string system = $"<font color='#61b8ff'>[System]<font color='white'> ";
-        public static string adminSys = $"<font color='red'>[Admin System]<font color='white'> ";
+        public static string noauth = $"<font color=red>[Not Authorized]<font color='white'> You are not authorized to use this command.";
+        public static string error = $"<font color=red>[Error]<font color='white'> ";
+        public static string system = $"<font color=#61b8ff>[System]<font color='white'> ";
+        public static string adminSys = $"<font color=red>[Admin System]<font color='white'> ";
         public static string techrustColour = "<color=#799BFF>";
         public static string orange = "<color=orange>";
         public static string stopColour = "</color>";
@@ -170,7 +170,6 @@ namespace Oxide.Plugins
         [ChatCommand("bansteam")]
         void banPlayerCmd(BasePlayer p, string command, string[] args)
         {
-            SendReply(p, $"{command}");
 
             if (!checkAuth(p))
             {
